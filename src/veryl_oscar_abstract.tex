@@ -13,10 +13,7 @@
     filecolor=magenta,
     urlcolor=cyan,
 }
-\usepackage{minted}
-\usemintedstyle{default}
-% Reduce font size for code listings to better fit IEEE format
-\setminted{fontsize=\small, breaklines=true}
+\usepackage[outputdir=../]{minted}
 
 \begin{document}
 
@@ -53,24 +50,36 @@ hardware description language, HDL, SystemVerilog, open-source hardware, hardwar
 Hardware Description Languages (HDLs) remain the primary method for digital hardware design, yet leading languages like SystemVerilog contain legacy features from decades past and lack the modern developer tools common in software engineering. These limitations create significant barriers to entry and reduce productivity, particularly impacting open-source hardware communities where collaboration, code reuse, and accessibility are paramount. Common challenges include:
 
 \begin{itemize}
-\item Complex syntax with error-prone constructs and limited safety guarantees
-\item Poor tooling support compared to modern programming languages
+\item Error-prone constructs and limited safety guarantees
+\item Poor tooling support compared to modern languages
 \item Limited facilities for code reuse and component sharing
 \item Difficult interoperability between projects and toolchains
-\item Critical issues like clock domain crossings often detectable only at simulation time
+\item Critical issues like clock domain crossings often detectable only at
+simulation time
 \end{itemize}
 
 These challenges have constrained the growth of open-source hardware ecosystems compared to their software counterparts. The Veryl Hardware Description Language addresses these limitations while maintaining interoperability with existing SystemVerilog components and toolchains.
 
 \section{Design and Implementation}
-Veryl is designed with three key principles: optimized syntax, interoperability, and productivity. The language maintains familiarity for SystemVerilog experts while introducing modern features for safer, more efficient hardware design.
+Veryl is designed with three key principles: syntactic simplicity, SystemVerilog
+interoperability, and productivity. The language
+maintains familiarity for SystemVerilog experts while introducing modern
+features for safer, more efficient hardware design.
 
 \subsection{Language Features}
 Veryl introduces several key innovations:
 
-\textbf{Optimized Syntax:} Veryl simplifies common hardware design patterns while removing ambiguities and unsynthesizable constructs. The language guarantees synthesizability, ensuring consistency between simulation results and final implementation. For example, Veryl eliminates the need for separate blocking and non-blocking assignment operators, instead inferring the correct behavior based on context.
+\textbf{Optimized Syntax:} Veryl simplifies common hardware design patterns
+while removing ambiguities and unsynthesizable constructs. The language
+guarantees synthesizability, ensuring consistency between simulation results and
+final implementation. For example, Veryl eliminates the need for separate
+blocking and non-blocking assignment operators, instead inferring the correct
+behavior based on context.
 
-\textbf{Clock Domain Annotation:} Veryl requires explicit annotation of clock domains and unsafe clock domain crossing (CDC) blocks, enabling automatic detection of unintended CDC issues during compilation rather than simulation or post-synthesis:
+\textbf{Strong Type System:} Veryl's type system includes a \texttt{clock} type,
+and requires explicit annotation of clock domains and unsafe clock domain
+crossing (CDC) blocks, enabling automatic detection of unintended CDC issues
+during compilation rather than simulation or post-synthesis:
 
 \begin{minted}{verilog}
 module ModuleA (
@@ -87,7 +96,11 @@ module ModuleA (
 }
 \end{minted}
 
-\textbf{Generics System with Module Prototypes:} Veryl implements a powerful generics system that goes beyond traditional parameter overrides, supporting parametrization of function signatures, module names, type definitions, and—uniquely—module prototypes, which enable using modules themselves as generic parameters:
+\textbf{Generics System with Module Prototypes:} Veryl implements a powerful
+generics system that goes beyond traditional parameter overrides, supporting
+parametrization of function signatures, module names, struct definitions, packages definitions,
+and --- uniquely --- module prototypes, which enable using modules themselves as generic
+parameters:
 
 \begin{minted}{verilog}
 // Function with generic parameter
@@ -98,7 +111,8 @@ function FuncA::<T: const> (
 }
 
 // Module prototype declaration
-prototype ModInterface::<DWIDTH: const, AWIDTH: const> (
+prototype ModInterface::<DWIDTH: const,
+        AWIDTH: const> (
     i_clk: input clock,
     i_reset: input reset,
     i_valid: input logic,
@@ -107,12 +121,13 @@ prototype ModInterface::<DWIDTH: const, AWIDTH: const> (
     o_ready: output logic,
 );
 
-// Module using another module as a parameter
-module MemoryController::<T: module ModInterface::<8, 16>> (
+// Module as a parameter
+module MemoryController::<T: module
+ModInterface::<8, 16>> (
     i_clk: input clock,
     i_reset: input reset,
 ) {
-    // Instantiate the generic module parameter
+    // Instantiate the generic module
     inst memory_interface: T (
         i_clk,
         i_reset,
