@@ -1,0 +1,267 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{balance}  % For equalizing columns on the last page
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,
+    urlcolor=cyan,
+}
+\usepackage{minted}
+\usemintedstyle{default}
+% Reduce font size for code listings to better fit IEEE format
+\setminted{fontsize=\small, breaklines=true}
+
+\begin{document}
+
+\title{Veryl: A Modern Hardware Description Language for Open-Source Computer Architecture}
+
+\author{
+\IEEEauthorblockN{Naoya Hatta}
+\IEEEauthorblockA{
+PEZY Computing
+}
+\and
+\IEEEauthorblockN{Taichi Ishitani}
+\IEEEauthorblockA{
+PEZY Computing
+}
+\and
+\IEEEauthorblockN{Nathan Bleier}
+\IEEEauthorblockA{
+University of Michigan
+}
+}
+
+\maketitle
+
+\begin{abstract}
+Hardware Description Languages (HDLs) form the foundation of digital hardware design, yet many popular HDLs predate modern software engineering practices and lack the tooling ecosystem that has revolutionized software development. We present Veryl, a modern HDL designed as a SystemVerilog alternative that brings advanced safety features, improved developer ergonomics, and robust tooling to hardware development while maintaining seamless interoperability with existing SystemVerilog components. Veryl addresses key challenges in open-source hardware design through simplified syntax, clock domain safety analysis, generics for code reuse, real-time diagnostics, and comprehensive tooling. By lowering barriers to entry and enhancing developer productivity, Veryl contributes to a more accessible and collaborative open-source hardware design ecosystem.
+\end{abstract}
+
+\begin{IEEEkeywords}
+hardware description language, HDL, SystemVerilog, open-source hardware, hardware design, EDA tools
+\end{IEEEkeywords}
+
+\section{Introduction}
+Hardware Description Languages (HDLs) remain the primary method for digital hardware design, yet leading languages like SystemVerilog contain legacy features from decades past and lack the modern developer tools common in software engineering. These limitations create significant barriers to entry and reduce productivity, particularly impacting open-source hardware communities where collaboration, code reuse, and accessibility are paramount. Common challenges include:
+
+\begin{itemize}
+\item Complex syntax with error-prone constructs and limited safety guarantees
+\item Poor tooling support compared to modern programming languages
+\item Limited facilities for code reuse and component sharing
+\item Difficult interoperability between projects and toolchains
+\item Critical issues like clock domain crossings often detectable only at simulation time
+\end{itemize}
+
+These challenges have constrained the growth of open-source hardware ecosystems compared to their software counterparts. The Veryl Hardware Description Language addresses these limitations while maintaining interoperability with existing SystemVerilog components and toolchains.
+
+\section{Design and Implementation}
+Veryl is designed with three key principles: optimized syntax, interoperability, and productivity. The language maintains familiarity for SystemVerilog experts while introducing modern features for safer, more efficient hardware design.
+
+\subsection{Language Features}
+Veryl introduces several key innovations:
+
+\textbf{Optimized Syntax:} Veryl simplifies common hardware design patterns while removing ambiguities and unsynthesizable constructs. The language guarantees synthesizability, ensuring consistency between simulation results and final implementation. For example, Veryl eliminates the need for separate blocking and non-blocking assignment operators, instead inferring the correct behavior based on context.
+
+\textbf{Clock Domain Annotation:} Veryl requires explicit annotation of clock domains and unsafe clock domain crossing (CDC) blocks, enabling automatic detection of unintended CDC issues during compilation rather than simulation or post-synthesis:
+
+\begin{minted}{verilog}
+module ModuleA (
+    i_clk_a: input  `a clock,
+    i_dat_a: input  `a logic,
+    o_dat_a: output `a logic,
+    i_clk_b: input  `b clock,
+    i_dat_b: input  `b logic,
+    o_dat_b: output `b logic,
+) {
+    unsafe (cdc) {
+        assign o_dat_b = i_dat_a;
+    }
+}
+\end{minted}
+
+\textbf{Generics System with Module Prototypes:} Veryl implements a powerful generics system that goes beyond traditional parameter overrides, supporting parametrization of function signatures, module names, type definitions, and—uniquely—module prototypes, which enable using modules themselves as generic parameters:
+
+\begin{minted}{verilog}
+// Function with generic parameter
+function FuncA::<T: const> (
+    a: input logic<T>,
+) -> logic<T> {
+    return a + 1;
+}
+
+// Module prototype declaration
+prototype ModInterface::<DWIDTH: const, AWIDTH: const> (
+    i_clk: input clock,
+    i_reset: input reset,
+    i_valid: input logic,
+    i_data: input logic<DWIDTH>,
+    i_addr: input logic<AWIDTH>,
+    o_ready: output logic,
+);
+
+// Module using another module as a parameter
+module MemoryController::<T: module ModInterface::<8, 16>> (
+    i_clk: input clock,
+    i_reset: input reset,
+) {
+    // Instantiate the generic module parameter
+    inst memory_interface: T (
+        i_clk,
+        i_reset,
+        // ...
+    );
+}
+\end{minted}
+
+\textbf{Real-time Diagnostics:} Issues such as undefined, unused, or unassigned
+variables are detected and reported during editing rather than at compile or
+simulation time.
+
+\textbf{Visibility Control:} Modules can be marked with the \texttt{pub}
+keyword to indicate they are part of a module's public API, allowing better
+encapsulation of implementation details.
+
+\subsection{Modern Tooling Ecosystem}
+Veryl is built with a comprehensive, modern tooling ecosystem that brings
+software development best practices to hardware design:
+
+\textbf{Language Server Protocol (LSP):} Veryl implements the Language Server
+Protocol, providing real-time diagnostics, go-to-definition,
+find-all-references, hover information, and auto-completion within all major
+editors including VSCode, Vim, Emacs, and JetBrains IDEs. This critical feature
+enables developers to identify errors instantly rather than waiting for
+compilation or simulation failures.
+
+\textbf{Automatic Formatting:} The built-in formatter ensures consistent code
+style across projects and teams, eliminating style debates and reducing code
+review friction. The formatter can be invoked manually, integrated into editors
+for on-save formatting, and enforced in continuous integration pipelines.
+
+\textbf{Package Management:} Built-in dependency management enables easy
+incorporation of libraries by specifying repository paths and versions in a
+project configuration file, similar to npm, cargo, or pip in software
+ecosystems.
+
+\textbf{Testing Infrastructure:} Test code written in SystemVerilog or cocotb
+can be embedded directly in Veryl code and executed through the \texttt{veryl
+test} command, enabling test-driven development workflows that are standard in
+software but challenging with traditional HDLs.
+
+\textbf{Documentation Generation:} Support for Markdown, WaveDrom waveform
+diagrams, and Mermaid diagrams within documentation comments enables
+comprehensive, visually rich documentation that evolves alongside the code.
+
+\section{SystemVerilog Interoperability}
+A key feature of Veryl is its seamless interoperability with existing
+SystemVerilog codebases. Unlike many language transpilers that produce
+obfuscated or machine-optimized output, the Veryl compiler generates
+exceptionally clean, human-readable SystemVerilog code that follows established
+coding conventions. This high-quality output is a deliberate design choice that
+provides several critical benefits:
+
+\begin{itemize}
+    \item Transparency for debugging and verification processes
+    \item Easy code reviews of the generated SystemVerilog
+    \item Compatibility with existing SystemVerilog toolchains and workflows
+    \item Ability to manually modify the generated code if needed
+    \item Lower barrier to adoption through clear relationship between Veryl
+        code and its SystemVerilog equivalent
+\end{itemize}
+
+The example below shows a Veryl module and its transpiled SystemVerilog output, demonstrating the clean, readable nature of the generated code:
+
+\begin{minted}{verilog}
+// Original Veryl code
+module Counter (
+    i_clk: input clock,
+    i_rst: input reset,
+    o_count: output logic<8>,
+) {
+    always_ff {
+        if_reset {
+            o_count = 0;
+        } else {
+            o_count += 1;
+        }
+    }
+}
+\end{minted}
+
+\begin{minted}{systemverilog}
+// Generated SystemVerilog code
+module Counter (
+    input  logic i_clk,
+    input  logic i_rst,
+    output logic [7:0] o_count
+);
+    always_ff @(posedge i_clk or negedge i_rst) begin
+        if (!i_rst) begin
+            o_count <= 8'h0;
+        end else begin
+            o_count <= o_count + 8'h1;
+        end
+    end
+endmodule
+\end{minted}
+
+Additionally, SystemVerilog modules, interfaces, and packages can be referenced directly using the \texttt{\$sv} namespace, allowing seamless bidirectional interoperability:
+
+\begin{minted}{verilog}
+module ModuleA {
+    let _a: logic = $sv::PackageA::ParamA;
+    inst b: $sv::ModuleB;
+    inst c: $sv::InterfaceC;
+}
+\end{minted} 
+
+This high-quality code generation, combined with the \texttt{\$sv} namespace
+approach, enables gradual adoption within existing projects without requiring
+an all-or-nothing migration strategy.
+
+\section{Evaluation and Feedback}
+Initial user feedback indicates significant productivity improvements, with
+users reporting faster development cycles and fewer debugging sessions. The
+language's built-in safety features have proven particularly valuable for
+identifying cross-clock domain issues and type inconsistencies early in the
+design process, problems that traditionally manifest only during simulation or
+on physical hardware.
+
+The abstraction of clock and reset polarity/synchronicity allows the same Veryl
+code to target both ASIC flows (typically using negative asynchronous reset)
+and FPGA flows (typically using positive synchronous reset) through build-time
+configuration rather than code changes.
+
+\section{Conclusion and Future Work}
+By lowering barriers to entry, improving code quality, and enhancing developer
+productivity, Veryl contributes to the broader movement toward accessible and
+collaborative open-source hardware design. Our future work focuses on:
+
+\begin{itemize}
+    \item Expanding language server capabilities for more sophisticated code analysis
+    \item Integrating with additional simulators and synthesis tools
+    \item Building a comprehensive standard library for common hardware components
+    \item Implementing advanced static analysis for timing and resource optimization
+\end{itemize}
+
+Through these efforts, we aim to make hardware design more accessible to a
+broader community and accelerate innovation in open-source computer
+architecture.
+
+\balance 
+
+% \section*{Acknowledgment}
+% The authors would like to thank...
+
+% \begin{thebibliography}{00}
+% \bibitem{b1} G. Eason, B. Noble, and I. N. Sneddon, ``On certain integrals of Lipschitz-Hankel type involving products of Bessel functions,'' Phil. Trans. Roy. Soc. London, vol. A247, pp. 529--551, April 1955.
+% \end{thebibliography}
+
+\end{document}
